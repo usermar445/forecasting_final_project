@@ -1,0 +1,46 @@
+---
+header-includes:
+- \usepackage{xcolor}
+- \usepackage{color} 
+- \usepackage{fancyhdr,color}
+- \usepackage{lipsum}
+- \fancyfoot[CE] {\thepage}
+title: "**Assignment 1,2\n &nbsp;  \n Team X**"
+subtitle: "Applied Forecasting in Complex Systems 2022"
+author: Martin Arnold
+date: "University of Amsterdam \n &nbsp;  \n November, 7, 2022 "
+output: pdf_document
+fontsize: 11pt
+highlight: tango
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache = TRUE,
+  dev.args = list(pointsize = 11)
+)
+options(digits = 3, width = 60)
+library(fpp3)
+library(latex2exp)
+```
+## Exercise 2
+
+**2.1)**
+
+```{r}
+pop <- global_economy %>% filter(Code=="AFG") %>% select(Year, Population) %>% as_tsibble(index=Year)
+pop %>% autoplot()
+```
+- Clear dip as in the 1980s
+- Otherwise strong upwards (almost linear trend)
+- No seasonality
+
+
+**2.2)**
+
+
+
+
+

@@ -52,7 +52,10 @@ sales_test_ts <- merge(sales_test_pivot, calendar, by.x="Day", by.y="day") %>%
   as_tsibble(index=Date, key=product_id)
 
 
-## ++++++++++++++++++ RUN TEST PREDICTION ++++++++++++++++++++++++++++
+## ++++++++++++++++++ ARIMA BASELINE ++++++++++++++++++++++++++++
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
 
 #test <- sales_ts %>% 
 #  filter(product_id <= 100)
@@ -64,7 +67,7 @@ arima_fit <- sales_ts %>%
 fc <- arima_fit %>% forecast(h=28) 
 
 
-## ++++++++++++++++++ EVALUATE ++++++++++++++++++++++++++++
+## ++++++++++++++++++ Evaluate ++++++++++
 
 
 accuracy <- fc %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
@@ -73,6 +76,21 @@ accuracy <- fc %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
 rmse <- mean(accuracy$rmse)
 print(rmse)
 
+
+## ++++++++++++++++++ Create Submission File +++++++++
+
+
+fc_arima <- fc %>% as_tibble() %>% 
+  select(product_id, Date, `.mean`) %>% 
+  rename(fc = `.mean`) %>%
+  mutate(across(fc, round)) %>% 
+  left_join(ids, by=c("product_id" = "id_numeric")) %>%
+  left_join(calendar, by=c('Date' = "date_new")) %>%
+  rename(product=id.x) %>%
+  select(product, day, fc) %>%
+  pivot_wider(names_from = day, values_from = fc)
+
+write.csv(fc_arima, "../forecasts/fc_arima_baseline.csv")
 
 
 

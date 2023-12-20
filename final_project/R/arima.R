@@ -1,5 +1,7 @@
 #load packages
 library(fpp3)
+library(stringr)
+
 
 
 ## ++++++++++++++++++ LOAD DATA ++++++++++++++++++++++++++++
@@ -13,7 +15,10 @@ sales_train <- read.csv(paste(data_path,"sales_train_validation_afcs2023.csv", s
 sales_test <- read.csv(paste(data_path,"sales_test_validation_afcs2022.csv", sep=""))
 
 # calendar data
-calendar <- read.csv(paste(data_path,"calendar_afcs2023.csv", sep=""))
+calendar_df <- read.csv(paste(data_path,"calendar_afcs2023.csv", sep=""))
+
+# price data
+price_df <- read.csv(paste(data_path,"sell_prices_afcs2023.csv", sep=""))
 
 
 ## ++++++++++++++++++ PREPARE DATA SETS ++++++++++++++++++++++++++++
@@ -23,7 +28,7 @@ calendar <- read.csv(paste(data_path,"calendar_afcs2023.csv", sep=""))
 calendar$date_new <- as.Date(calendar$date, format = "%m/%d/%Y")
 
 # create id column to merge with sales data, everything else is disregarded
-calendar <- calendar %>% select(date_new) %>% arrange(date_new) %>% mutate(id = row_number(), day = paste("d_", id, sep=""))
+calendar <- calendar_df %>% select(date_new) %>% arrange(date_new) %>% mutate(id = row_number(), day = paste("d_", id, sep=""))
 
 # 2) Sales train data
 
@@ -190,5 +195,124 @@ submission_ets <- fc_ets %>% as_tibble() %>%
   pivot_wider(names_from = day, values_from = fc)
 
 write.csv(submission_ets, "../forecasts/fc_ets_baseline.csv")
+
+
+
+## ++++++++++++++++++ DYNAMIC REGRESSION +++++++++++++++++++++++
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+
+calendar_df$Date <- as.Date(calendar_df$date, format = "%m/%d/%Y")
+
+calendar_df <- calendar_df %>% arrange(Date)
+
+# dummy if weekend
+cal <- calendar_df %>% mutate(is_weekend = if_else(wday<=2, 1,0))
+
+# 
+cal <- cal %>% mutate(day_of_month = day(Date))
+
+cal %>% filter(event_name_1 =="Thanksgiving")
+
+# Create a tibble for black_friday and rename the column to "dat"
+black_friday <- cal %>%
+  filter(event_name_1 == "Thanksgiving") %>%
+  mutate(dat = Date + days(1)) %>% 
+  select(dat)
+
+# Convert the tibble to a data frame
+black_friday <- as.data.frame(black_friday)
+
+# Extract the vector using pull
+black_friday_vector <- pull(black_friday, dat)
+
+# Initialize the "black_friday" column in the original dataframe
+cal$black_friday <- 0
+
+# Update the "black_friday" column based on the conditions
+cal <- cal %>%
+  mutate(event_new = if_else(Date %in% black_friday_vector, 1, 0)) %>%
+  rename(b_friday = event_new)
+
+cal <- cal %>%
+  mutate(event = if_else(!is.na(event_name_1), 1, 0))
+
+
+thankgsgivings <- cal %>%
+  filter(event_name_1 == "Thanksgiving") %>%
+  select(Date)
+
+christmas <- cal %>%
+  filter(event_name_1 == "Christmas") %>%
+  select(Date)
+
+Map(function(x,y){
+  print(x)
+  print(y)
+}, thankgsgivings, christmas)
+
+
+cal_df <- cal %>%
+  select(wm_yr_wk, wday, month, snap_TX, Date, is_weekend, day_of_month, event) 
+
+
+joined <- sales_ts %>% 
+  left_join(cal_df, by="Date") 
+
+ids <- ids %>%
+  rename(product_id = id_numeric)
+  
+joined <- joined %>%
+  left_join(ids, by="product_id")
+
+joined <- joined %>%
+  mutate(extracted_id = str_extract(id, "FOODS_\\d+_\\d+"))
+
+joined <- joined %>%
+  rename(item_id = extracted_id) %>% 
+  left_join(price_df, by=c("item_id", "wm_yr_wk"))
+
+joined %>% 
+  filter(is.na(sell_price))
+
+joined <- joined %>% 
+  arrange(product_id, Date) %>%
+  fill(sell_price)
+
+joined <- joined %>%
+  select(Date, product_id, id, Sales, wday, month, snap_TX, is_weekend, day_of_month, b_friday, event, sell_price)
+
+
+##--------------------------------------------------------------
+
+#test <-  joined %>%
+#  filter(product_id <= 20)
+
+
+dynamic_reg <- joined %>%
+  model(ARIMA(Sales ~ snap_TX))
+
+
+fc_horizon_dates <- sales_test_ts %>% distinct(Date) %>%
+  mutate(shift_date = Date - years(1))
+
+new_snap_data <- joined %>% filter(Date %in% fc_horizon_dates$shift_date) %>%
+  select(Date, product_id, snap_TX) %>%
+  mutate(Date = Date + years(1)) %>% 
+  as_tsibble()
+
+fc_dynam <-  forecast(dynamic_reg,  new_snap_data) 
+
+
+## ++++++++++++++++++ Evaluate ++++++++++
+
+accuracy <- fc_dynam %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
+
+
+rmse <- mean(accuracy$rmse)
+print(rmse)
+
+
 
 

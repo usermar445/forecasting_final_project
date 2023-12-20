@@ -94,5 +94,64 @@ write.csv(fc_arima, "../forecasts/fc_arima_baseline.csv")
 
 
 
+## ++++++++++++++++++ Naive Methods ++++++++++++++++++++++++++++
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+
+#test <- sales_ts %>% 
+#  filter(product_id <= 100)
+
+
+fit_baseline <- sales_ts %>%
+  model(
+    Mean = MEAN(Sales),
+    `Naïve` = NAIVE(Sales),
+    Drift = NAIVE(Sales ~ drift()),
+    `Seasonal naïve` = SNAIVE(Sales)
+  )
+
+
+fc_baseline <- fit_baseline %>% forecast(h=28) 
+
+
+## ++++++++++++++++++ Evaluate ++++++++++
+
+
+accuracy_baseline <- fc_baseline %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
+
+
+rmse_baseline <- accuracy_baseline %>% group_by(`.model`) %>% summarise(mean(rmse))
+print(rmse_baseline)
+
+print(rmse)
+
+## ++++++++++++++++++ Create Submission File +++++++++
+
+baseline_models <- rmse_baseline %>% 
+  distinct(`.model`) %>% 
+  pull(`.model`) %>%
+  as.list()
+
+for(model in baseline_models){
+  print(model)
+  fc_base <- fc_baseline %>% as_tibble() %>% 
+    mutate(Model = `.model`) %>%
+    filter(Model== model) %>% 
+    select(product_id, Date, `.mean`) %>% 
+    rename(fc = `.mean`) %>%
+    mutate(across(fc, round)) %>% 
+    left_join(ids, by=c("product_id" = "id_numeric")) %>%
+    left_join(calendar, by=c('Date' = "date_new")) %>%
+    rename(product=id.x) %>%
+    select(product, day, fc) %>%
+    pivot_wider(names_from = day, values_from = fc)
+  
+  file_name <- paste("fc_", model, ".csv",sep="")
+  write.csv(fc_base, paste("../forecasts/", file_name, sep=""))
+  
+}
+
+
 
 

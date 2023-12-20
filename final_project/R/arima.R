@@ -152,6 +152,43 @@ for(model in baseline_models){
   
 }
 
+## ++++++++++++++++++ ETS BASELINE ++++++++++++++++++++++++++++
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
 
+# test <- sales_ts %>% 
+#   filter(product_id <= 20)
+
+
+ets_fit <- sales_ts %>%
+  model(ETS(Sales))
+
+fc_ets <- ets_fit %>% forecast(h=28) 
+
+
+## ++++++++++++++++++ Evaluate ++++++++++
+
+
+accuracy_ets <- fc_ets %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
+
+
+rmse_ets <- accuracy_ets %>% group_by(`.model`) %>% summarise(mean(rmse))
+print(rmse_ets)
+
+
+## ++++++++++++++++++ Create Submission File +++++++++
+
+submission_ets <- fc_ets %>% as_tibble() %>% 
+  select(product_id, Date, `.mean`) %>% 
+  rename(fc = `.mean`) %>%
+  mutate(across(fc, round)) %>% 
+  left_join(ids, by=c("product_id" = "id_numeric")) %>%
+  left_join(calendar, by=c('Date' = "date_new")) %>%
+  rename(product=id.x) %>%
+  select(product, day, fc) %>%
+  pivot_wider(names_from = day, values_from = fc)
+
+write.csv(submission_ets, "../forecasts/fc_ets_baseline.csv")
 
 

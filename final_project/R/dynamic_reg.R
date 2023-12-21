@@ -255,19 +255,19 @@ write.csv(submission_dynamic_3, "../forecasts/fc_dynamic_3.csv")
 dynamic_reg_4<- sales_train %>%
   model(ARIMA(Sales ~ sell_price + snap_TX + event_lead_1 + event_lead_2 + event_lead_3))
 
-fc_dynam_lag <-  forecast(dynamic_reg_lag,  new_data) 
+fc_dynam_4 <-  forecast(dynamic_reg_4,  new_data) 
 
 
 ## ++++++++++++++++++ Evaluate ++++++++++
 
-accuracy <- fc_dynam_lag %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
+accuracy <- fc_dynam_4 %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
 rmse <- mean(accuracy$rmse, na.rm=TRUE)
 print(rmse)
 
 
 ## ++++++++++++++++++ Create Submission File +++++++++
 
-submission_dynamic_3 <- fc_dynam_lag %>% as_tibble() %>% 
+submission_dynamic_4 <- fc_dynam_4 %>% as_tibble() %>% 
   select(product_id, Date, `.mean`) %>% 
   rename(fc = `.mean`) %>%
   mutate(across(fc, round))%>% 
@@ -276,5 +276,5 @@ submission_dynamic_3 <- fc_dynam_lag %>% as_tibble() %>%
   select(id, day, fc) %>%
   pivot_wider(names_from = day, values_from = fc)
 
-write.csv(submission_dynamic_3, "../forecasts/fc_dynamic_3.csv")
+write.csv(submission_dynamic_4, "../forecasts/fc_dynamic_4.csv")
 

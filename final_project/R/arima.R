@@ -203,6 +203,12 @@ write.csv(submission_ets, "../forecasts/fc_ets_baseline.csv")
 ##--------------------------------------------------------------
 ##--------------------------------------------------------------
 
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
 calendar_df$Date <- as.Date(calendar_df$date, format = "%m/%d/%Y")
 
 calendar_df <- calendar_df %>% arrange(Date)
@@ -284,8 +290,10 @@ joined <- joined %>%
   select(Date, product_id, id, Sales, wday, month, snap_TX, is_weekend, day_of_month, b_friday, event, sell_price)
 
 
+## ++++++++++++++++++ Sales ~ snap_TX +++++++++++++++++++++++
 ##--------------------------------------------------------------
-
+##--------------------------------------------------------------
+##--------------------------------------------------------------
 #test <-  joined %>%
 #  filter(product_id <= 20)
 
@@ -309,10 +317,128 @@ fc_dynam <-  forecast(dynamic_reg,  new_snap_data)
 
 accuracy <- fc_dynam %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
 
+test_fc <- fc_dynam %>%
+  as_tibble() %>%
+  mutate(across('.mean', round))
+  
+acc <- accuracy(test_fc, sales_test_ts)
+rmse <- mean(acc$RMSE)
+print(RMSE)
+
 
 rmse <- mean(accuracy$rmse)
 print(rmse)
 
+## ++++++++++++++++++ Create Submission File +++++++++
+
+submission_dynamic <- fc_dynam %>% as_tibble() %>% 
+  select(product_id, Date, `.mean`) %>% 
+  rename(fc = `.mean`) %>%
+  mutate(across(fc, round)) %>% 
+  left_join(ids, by="product_id") %>%
+  left_join(calendar, by=c('Date' = "date_new")) %>%
+  rename(product=id.x) %>%
+  select(product, day, fc) %>%
+  pivot_wider(names_from = day, values_from = fc)
+
+write.csv(submission_dynamic, "../forecasts/fc_dynamic_1.csv")
+
+## ++++++++++++++++++ no-lags +++++++++++++++++++++++
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+##--------------------------------------------------------------
+
+dynamic_reg_2 <- joined %>%
+  select(-id) %>% 
+  model(ARIMA(Sales ~ sell_price + snap_TX + wday + month + day_of_month + event))
+
+
+fc_horizon_dates <- sales_test_ts %>% distinct(Date) 
+
+fc_horizon_dates <- cal %>% filter(Date %in% fc_horizon_dates$Date) %>%
+  select(Date, wday, month, day_of_month, event)
+
+last_price <- joined %>%
+  as_tibble() %>%
+  group_by(product_id) %>% slice(n()) %>% 
+  select(product_id, sell_price)
+
+shifted_dates <- sales_test_ts %>% distinct(Date) %>%
+  mutate(shift_date = Date - years(1))
+
+snap_data <- joined %>% filter(Date %in% shifted_dates$shift_date) %>%
+  select(Date, product_id, snap_TX) %>%
+  mutate(Date = Date + years(1)) %>% 
+  as_tsibble()
+
+
+new_snap_data <- fc_horizon_dates %>%
+  left_join(sales_test_ts, by="Date") %>%
+  select(-Sales) %>%
+  arrange(product_id, Date) %>%
+  left_join(last_price, by="product_id") %>%
+  left_join(snap_data, by=c("product_id", "Date")) %>%
+  as_tsibble(index=Date, key=product_id)
+  
+fc_dynam_2 <-  forecast(dynamic_reg_2,  new_snap_data) 
+
+
+## ++++++++++++++++++ Evaluate ++++++++++
+
+accuracy <- fc_dynam_2 %>% accuracy(sales_test_ts, measures = list(rmse = RMSE))
+rmse <- mean(accuracy$rmse)
+print(RMSE)
+
+test_fc <- fc_dynam %>%
+  as_tibble() %>%
+  mutate(across('.mean', round))
+
+acc <- accuracy(test_fc, sales_test_ts)
+rmse <- mean(acc$RMSE)
+print(RMSE)
+
+
+rmse <- mean(accuracy$rmse)
+print(rmse)
+
+## ++++++++++++++++++ Create Submission File +++++++++
+
+submission_dynamic <- fc_dynam %>% as_tibble() %>% 
+  select(product_id, Date, `.mean`) %>% 
+  rename(fc = `.mean`) %>%
+  mutate(across(fc, round)) %>% 
+  left_join(ids, by="product_id") %>%
+  left_join(calendar, by=c('Date' = "date_new")) %>%
+  rename(product=id.x) %>%
+  select(product, day, fc) %>%
+  pivot_wider(names_from = day, values_from = fc)
+
+write.csv(submission_dynamic, "../forecasts/fc_dynamic_1.csv")
+
+
+
+
+
+
+
+## ++++++++++++++++++
+## ++++++++++++++++++
+## ++++++++++++++++++
+## ++++++++++++++++++
+## ++++++++++++++++++
+## ++++++++++++++++++
+## ++++++++++++++++++
+
+joined %>% filter(product_id == 89) %>% autoplot(Sales)
+
+mean_price %>% price_df
+
+
+prod_freq <- joined %>% select(Date, product_id, Sales) %>%
+  mutate_all(~replace(., . == 0, NA)) %>%
+  as.data.frame() %>%
+  group_by(product_id) %>%
+  summarise(mean(Sales, na.rm=TRUE))
 
 
 

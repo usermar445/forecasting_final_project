@@ -1,9 +1,9 @@
-# Forecasting Sales for 823 different Food Retail products for Walmart's TX3 store
+# Forecasting Sales for 823 food retail products for Walmart's TX3 store (M5 Forecasting)
 #### Final project, *Applied Forecasting in Complex Systems*, 2023, University of Amsterdam (UvA), Dr. Erman Acar
 
 Authors: Kyra Dresen, Mladen Mladenov, Martin Arnold
 
-![image](misc/poster_aml_final.png)
+![image](plots/plot1.png)
 
 ## Table of contents
 
@@ -23,7 +23,7 @@ Authors: Kyra Dresen, Mladen Mladenov, Martin Arnold
 
 Scripts are either Jupyter Notebooks or R scripts.
 
-## Problem statement
+## Problem statement (from the assignement description)
 
 Forecasting predicts the number of sales in the future. Having the right amount of products in stock is a core 
 challenge in retail. A good forecast makes sure there are enough of your favourite products in stock, even if you come 
@@ -50,3 +50,39 @@ The dataset consists of the following five (5) files:
 - `sales_train_validation_afcs2023.csv` contains the historical daily unit sales data per product and store
 - `sales_test_validation_afcs2023.csv`  contains the historical daily unit sales data per product and store
 - `sales_test_validation_afcs2023.csv` contains the historical daily unit sales data per product and store
+
+## Our approach
+We identified three main characteristics to be taken into account for this challenge:
+
+- **Complex seasonality:** We are dealing with daily data  which typically shows multiple seasonal patterns. In  our case, we discussed a yearly pattern and a weekly  pattern on an aggregate level. However, on the product  level these patterns are less clear and there might  be other seasonal patterns present depending on the
+product type. Seasonal patterns from holidays are also changing, because some holidays not always fall on the same date (e.g. Easter).
+- **Exogenous variables:** We expect exogenous variables to have a strong effect. As discussed, this includes price, holidays, or SNAP, or lagged values of these.  We need to have a model that can account for these variables.
+- **Bottom level predictions:** Because we are doing forecasts on a bottom level (product level), we have to estimate 823 different models of each model type. It is  simply not feasible to manually select model parameters  for each product time-series but we will have  to rely on the automatic parameter selection of the  fable package.
+
+Our approach consisted in comparing different models against each other, more specifically, "classical" statistical 
+approaches:
+
+- Baseline: a seasonal naive model,
+- Dynamic Regression models,
+- ARIMA,
+- Meta's Prophet model,
+
+to a more recent, machine-learning based approach:
+
+- LightGBM (tree-based model)
+
+While classical approaches work on time series data, feature engineering was a crucial part for LightGBM.
+
+## Results
+
+**Metric: RSME**
+
+\begin{equation}
+RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^n(y_i - \hat y_i)^2}
+\end{equation}
+
+Calculating the average RMSE over all 823 different products for the 28 days, we derived:
+
+![image](plots/plot2.png)
+
+

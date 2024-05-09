@@ -10,6 +10,8 @@ Authors: Kyra Dresen, Mladen Mladenov, Martin Arnold
 - [Repository structure](#repository-structure)
 - [Problem statement](#problem-statement)
 - [Data](#data)
+- [Our approach](#our-approach)
+- [Results](#results)
 
 
 ## Repository structure

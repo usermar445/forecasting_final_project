@@ -78,10 +78,12 @@ While classical approaches work on time series data, feature engineering was a c
 ## Results
 
 **Metric: RSME**
-
+```math
 \begin{equation}
 RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^n(y_i - \hat y_i)^2}
 \end{equation}
+```
+
 
 Calculating the average RMSE over all 823 different products for the 28 days, we derived:
 
